@@ -2,16 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import type { Project, User } from './types/domain'
 import type { Creative, CreativeDetailDto } from './types/creatives'
-import type { VisualDetailDto, VisualRequest } from './types/visuals'
-import type { ModelProfile, ModelProfileDetailDto } from './types/models'
-import type { DesignStaffSetting, ReviewerReport, SmmReport, StaffRatePeriod, TeamStatsDto } from './types/team'
-import {
-  CreativesDetailShell,
-  CreativesListShell,
-  CreativesMetricsShell,
-  type CreativeDetailModel,
-  type CreativeListItem,
-} from './modules/creatives'
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url)
@@ -25,14 +15,14 @@ async function requestJson<T>(url: string, method: 'POST' | 'PATCH', body: unkno
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-
   if (!res.ok) {
     const data = await res.json().catch(() => null)
     throw new Error(data?.message ?? `${url} -> ${res.status}`)
   }
-
   return res.json()
 }
+
+type RoleView = 'buyer' | 'hod' | 'designer'
 
 function App() {
   const [me, setMe] = useState<User | null>(null)
@@ -43,64 +33,25 @@ function App() {
   const [myCreatives, setMyCreatives] = useState<Creative[]>([])
   const [selectedCreativeId, setSelectedCreativeId] = useState<number | null>(null)
   const [selectedCreativeDetail, setSelectedCreativeDetail] = useState<CreativeDetailDto | null>(null)
-  const [visuals, setVisuals] = useState<VisualRequest[]>([])
-  const [selectedVisualId, setSelectedVisualId] = useState<number | null>(null)
-  const [selectedVisualDetail, setSelectedVisualDetail] = useState<VisualDetailDto | null>(null)
-  const [models, setModels] = useState<ModelProfile[]>([])
-  const [selectedModelId, setSelectedModelId] = useState<number | null>(null)
-  const [selectedModelDetail, setSelectedModelDetail] = useState<ModelProfileDetailDto | null>(null)
-  const [teamStats, setTeamStats] = useState<TeamStatsDto | null>(null)
-  const [staffSettings, setStaffSettings] = useState<DesignStaffSetting[]>([])
-  const [ratePeriods, setRatePeriods] = useState<StaffRatePeriod[]>([])
-  const [reviewerReports, setReviewerReports] = useState<ReviewerReport[]>([])
-  const [smmReports, setSmmReports] = useState<SmmReport[]>([])
-  const [newModelName, setNewModelName] = useState('')
-  const [newModelGeo, setNewModelGeo] = useState('')
-  const [loadingDetail, setLoadingDetail] = useState(false)
-  const [actionLoading, setActionLoading] = useState<'assign' | 'reassign' | 'unassign' | 'take' | 'submitReview' | 'requestRevision' | 'accept' | null>(null)
-  const [visualActionLoading, setVisualActionLoading] = useState<'assign' | 'take' | 'status' | null>(null)
-  const [modelActionLoading, setModelActionLoading] = useState<'create' | 'update' | null>(null)
+  const [view, setView] = useState<RoleView>('hod')
+  const [loading, setLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const refreshCreatives = async () => {
-    const [creativesData, assignedData, myData] = await Promise.all([
+    const [all, assigned, mine] = await Promise.all([
       getJson<Creative[]>('/api/creative-requests'),
       getJson<Creative[]>('/api/creative-requests/assigned'),
       getJson<Creative[]>('/api/creative-requests/my'),
     ])
-    setCreatives(creativesData)
-    setAssignedCreatives(assignedData)
-    setMyCreatives(myData)
+    setCreatives(all)
+    setAssignedCreatives(assigned)
+    setMyCreatives(mine)
   }
 
-  const refreshVisuals = async () => setVisuals(await getJson<VisualRequest[]>('/api/visuals'))
-  const refreshModels = async () => setModels(await getJson<ModelProfile[]>('/api/model-profiles'))
-  const refreshTeam = async () => {
-    const [stats, settings, periods, reviewer, smm] = await Promise.all([
-      getJson<TeamStatsDto>('/api/design-team/stats'),
-      getJson<DesignStaffSetting[]>('/api/design-staff-settings'),
-      getJson<StaffRatePeriod[]>('/api/staff-rate-periods'),
-      getJson<ReviewerReport[]>('/api/reviewer-reports'),
-      getJson<SmmReport[]>('/api/smm-reports'),
-    ])
-    setTeamStats(stats)
-    setStaffSettings(settings)
-    setRatePeriods(periods)
-    setReviewerReports(reviewer)
-    setSmmReports(smm)
+  const refreshDetail = async (id: number) => {
+    setSelectedCreativeDetail(await getJson<CreativeDetailDto>(`/api/creative-requests/${id}`))
   }
-
-  const refreshCreativeDetail = async (id: number) => {
-    setLoadingDetail(true)
-    try {
-      setSelectedCreativeDetail(await getJson<CreativeDetailDto>(`/api/creative-requests/${id}`))
-    } finally {
-      setLoadingDetail(false)
-    }
-  }
-
-  const refreshVisualDetail = async (id: number) => setSelectedVisualDetail(await getJson<VisualDetailDto>(`/api/visuals/${id}`))
-  const refreshModelDetail = async (id: number) => setSelectedModelDetail(await getJson<ModelProfileDetailDto>(`/api/model-profiles/${id}`))
 
   useEffect(() => {
     Promise.all([
@@ -108,9 +59,6 @@ function App() {
       getJson<Project[]>('/api/projects'),
       getJson<User[]>('/api/users'),
       refreshCreatives(),
-      refreshVisuals(),
-      refreshModels(),
-      refreshTeam(),
     ])
       .then(([meData, projectsData, usersData]) => {
         setMe(meData)
@@ -120,252 +68,216 @@ function App() {
       .catch((err: Error) => setError(err.message))
   }, [])
 
-  useEffect(() => { if (!selectedCreativeId && creatives.length > 0) setSelectedCreativeId(creatives[0].id) }, [creatives, selectedCreativeId])
-  useEffect(() => { if (!selectedVisualId && visuals.length > 0) setSelectedVisualId(visuals[0].id) }, [selectedVisualId, visuals])
-  useEffect(() => { if (!selectedModelId && models.length > 0) setSelectedModelId(models[0].id) }, [models, selectedModelId])
+  useEffect(() => {
+    if (!selectedCreativeId && creatives.length > 0) setSelectedCreativeId(creatives[0].id)
+  }, [creatives, selectedCreativeId])
 
-  useEffect(() => { if (!selectedCreativeId) return setSelectedCreativeDetail(null); refreshCreativeDetail(selectedCreativeId).catch((err: Error) => setError(err.message)) }, [selectedCreativeId])
-  useEffect(() => { if (!selectedVisualId) return setSelectedVisualDetail(null); refreshVisualDetail(selectedVisualId).catch((err: Error) => setError(err.message)) }, [selectedVisualId])
-  useEffect(() => { if (!selectedModelId) return setSelectedModelDetail(null); refreshModelDetail(selectedModelId).catch((err: Error) => setError(err.message)) }, [selectedModelId])
+  useEffect(() => {
+    if (!selectedCreativeId) return
+    setLoading(true)
+    refreshDetail(selectedCreativeId)
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [selectedCreativeId])
 
-  const userNameById = useMemo(() => new Map(users.map((user) => [user.id, user.name])), [users])
-  const projectNameById = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects])
+  const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
+  const userNameById = useMemo(() => new Map(users.map((u) => [u.id, u.name])), [users])
 
-  const creativesListItems = useMemo<CreativeListItem[]>(() => creatives.slice(0, 12).map((creative) => ({
-    id: creative.id,
-    internalCode: creative.internalCode,
-    title: creative.title,
-    projectName: creative.projectId ? (projectNameById.get(creative.projectId) ?? 'Unknown project') : 'No project',
-    type: creative.type,
-    status: creative.status,
-    priority: creative.priority,
-    requestedByName: userNameById.get(creative.requestedById),
-    assignedToName: creative.assignedToId ? (userNameById.get(creative.assignedToId) ?? null) : null,
-    createdAt: creative.createdAt,
-  })), [creatives, projectNameById, userNameById])
+  const queueCreatives = useMemo(
+    () => creatives.filter((c) => ['draft', 'sent_to_designer', 'revision', 'review'].includes(c.status)),
+    [creatives],
+  )
+  const auctionCreatives = useMemo(
+    () => creatives.filter((c) => ['pending_hod_setup', 'queued_for_auction', 'in_auction'].includes(c.status)),
+    [creatives],
+  )
+  const inProgressCreatives = useMemo(
+    () => creatives.filter((c) => c.status === 'in_progress'),
+    [creatives],
+  )
 
-  const selectedCreative = useMemo<CreativeDetailModel | null>(() => {
-    if (!selectedCreativeDetail) return null
-    return {
-      id: selectedCreativeDetail.id,
-      internalCode: selectedCreativeDetail.internalCode,
-      title: selectedCreativeDetail.title,
-      projectName: selectedCreativeDetail.projectId ? (projectNameById.get(selectedCreativeDetail.projectId) ?? 'Unknown project') : 'No project',
-      type: selectedCreativeDetail.type,
-      status: selectedCreativeDetail.status,
-      priority: selectedCreativeDetail.priority,
-      requestedByName: selectedCreativeDetail.requestedByName ?? undefined,
-      assignedToName: selectedCreativeDetail.assignedToName,
-      createdAt: selectedCreativeDetail.createdAt,
-      summary: selectedCreativeDetail.brief ?? 'No brief yet',
-      blocks: [
-        { title: 'Price', content: selectedCreativeDetail.price ? `$${selectedCreativeDetail.price}` : 'Not set' },
-        { title: 'Subtypes', content: selectedCreativeDetail.subtypes.length > 0 ? selectedCreativeDetail.subtypes.join(', ') : '—' },
-        { title: 'Status history', content: selectedCreativeDetail.statusLogs.map((log) => `${log.fromStatus ?? 'new'} → ${log.toStatus}`).join(' · ') },
-      ],
-    }
-  }, [projectNameById, selectedCreativeDetail])
+  const visibleCreatives = useMemo(() => {
+    if (view === 'buyer') return myCreatives
+    if (view === 'designer') return assignedCreatives
+    return creatives
+  }, [view, myCreatives, assignedCreatives, creatives])
 
-  const creativesMetrics = useMemo(() => ({
-    total: creatives.length,
-    assigned: assignedCreatives.length,
-    mine: myCreatives.length,
-    inProgress: creatives.filter((creative) => creative.status === 'in_progress').length,
-    review: creatives.filter((creative) => creative.status === 'review' || creative.status === 'revision').length,
-    completed: creatives.filter((creative) => creative.status === 'completed').length,
-  }), [assignedCreatives.length, creatives, myCreatives.length])
-
-  const runCreativeAction = async (kind: 'assign' | 'reassign' | 'unassign' | 'take' | 'submitReview' | 'requestRevision' | 'accept') => {
+  const runAction = async (kind: 'assign' | 'take' | 'submitReview' | 'requestRevision' | 'accept') => {
     if (!selectedCreativeDetail) return
     try {
       setActionLoading(kind)
       setError(null)
-      const fallbackDesigner = users.find((user) => user.roles.includes('designer'))
-      const anotherDesigner = users.find((user) => user.roles.includes('designer') && user.id !== selectedCreativeDetail.assignedToId)
+      const fallbackDesigner = users.find((u) => u.roles.includes('designer'))
+
       if (kind === 'assign') {
-        if (!fallbackDesigner) throw new Error('No designer available for assign')
-        await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/assign`, 'POST', { assigneeId: fallbackDesigner.id, actorUserId: me?.id, price: selectedCreativeDetail.price ?? '50' })
+        if (!fallbackDesigner) throw new Error('No designer available')
+        await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/assign`, 'POST', {
+          assigneeId: fallbackDesigner.id,
+          actorUserId: me?.id,
+          price: selectedCreativeDetail.price ?? '50',
+        })
       }
-      if (kind === 'reassign') {
-        if (!anotherDesigner) throw new Error('No second designer available for reassign')
-        await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/reassign`, 'POST', { assigneeId: anotherDesigner.id, actorUserId: me?.id, price: selectedCreativeDetail.price ?? '65' })
+      if (kind === 'take') {
+        await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/take-to-work`, 'POST', {
+          actorUserId: me?.id,
+        })
       }
-      if (kind === 'unassign') await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/unassign`, 'POST', { actorUserId: me?.id })
-      if (kind === 'take') await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/take-to-work`, 'POST', { actorUserId: me?.id })
-      if (kind === 'submitReview') await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/submit-review`, 'POST', { actorUserId: me?.id })
-      if (kind === 'requestRevision') await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/request-revision`, 'POST', { actorUserId: me?.id, note: 'Need one more iteration on the concept' })
-      if (kind === 'accept') await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/accept`, 'POST', { actorUserId: me?.id })
-      await refreshCreatives(); await refreshCreativeDetail(selectedCreativeDetail.id)
+      if (kind === 'submitReview') {
+        await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/submit-review`, 'POST', {
+          actorUserId: me?.id,
+        })
+      }
+      if (kind === 'requestRevision') {
+        await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/request-revision`, 'POST', {
+          actorUserId: me?.id,
+          note: 'Need one more iteration',
+        })
+      }
+      if (kind === 'accept') {
+        await requestJson(`/api/creative-requests/${selectedCreativeDetail.id}/accept`, 'POST', {
+          actorUserId: me?.id,
+        })
+      }
+
+      await refreshCreatives()
+      await refreshDetail(selectedCreativeDetail.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed')
-    } finally { setActionLoading(null) }
-  }
-
-  const runVisualAction = async (kind: 'assign' | 'take' | 'status') => {
-    if (!selectedVisualDetail) return
-    try {
-      setVisualActionLoading(kind)
-      setError(null)
-      const fallbackDesigner = users.find((user) => user.roles.includes('designer'))
-      if (kind === 'assign') {
-        if (!fallbackDesigner) throw new Error('No designer available for visual assign')
-        await requestJson(`/api/visuals/${selectedVisualDetail.id}/assign`, 'POST', { assigneeId: fallbackDesigner.id, actorUserId: me?.id })
-      }
-      if (kind === 'take') await requestJson(`/api/visuals/${selectedVisualDetail.id}/take`, 'PATCH', { actorUserId: me?.id })
-      if (kind === 'status') {
-        const nextStatus = selectedVisualDetail.status === 'in_progress' ? 'submitted' : 'in_progress'
-        await requestJson(`/api/visuals/${selectedVisualDetail.id}/status`, 'PATCH', { status: nextStatus, actorUserId: me?.id, comment: `Manual transition to ${nextStatus}` })
-      }
-      await refreshVisuals(); await refreshVisualDetail(selectedVisualDetail.id)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Visual action failed')
-    } finally { setVisualActionLoading(null) }
-  }
-
-  const runModelAction = async (kind: 'create' | 'update') => {
-    try {
-      setModelActionLoading(kind)
-      setError(null)
-      if (kind === 'create') {
-        if (!newModelName.trim() || !newModelGeo.trim()) throw new Error('Model name and geo are required')
-        await requestJson('/api/model-profiles', 'POST', { name: newModelName.trim(), geo: newModelGeo.trim(), projectId: projects[0]?.id ?? null })
-        setNewModelName(''); setNewModelGeo('')
-      }
-      if (kind === 'update') {
-        if (!selectedModelDetail) throw new Error('Select model first')
-        await requestJson(`/api/model-profiles/${selectedModelDetail.id}`, 'PATCH', { description: `${selectedModelDetail.description ?? ''} Updated in extracted MVP.`.trim() })
-      }
-      await refreshModels(); if (selectedModelId) await refreshModelDetail(selectedModelId)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Model action failed')
-    } finally { setModelActionLoading(null) }
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   return (
     <main className="app-shell">
-      <nav className="top-nav">
-        <a href="#creatives">Creatives</a>
-        <a href="#visuals">Visuals</a>
-        <a href="#models">Models</a>
-        <a href="#team">Team</a>
-      </nav>
-
       <header className="hero-block">
-        <div>
-          <p className="eyebrow">D7 Design Product</p>
-          <h1>Core + Team MVP shell</h1>
-          <p className="subtext">Creatives, Visuals, Models, and Team ops-light are connected in the standalone product.</p>
-        </div>
+        <p className="eyebrow">Creative Production System</p>
+        <h1>Buyer → HoD → Designer → Review</h1>
+        <p className="subtext">Переделанный core вокруг реального production flow, а не around random design screens.</p>
       </header>
 
-      {error ? <section className="card error-card"><h2>API / action problem</h2><p>{error}</p></section> : null}
+      {error ? (
+        <section className="card error-card">
+          <h2>Error</h2>
+          <p>{error}</p>
+        </section>
+      ) : null}
 
       <section className="grid">
-        <article className="card"><h2>Current user</h2>{me ? <><div className="metric">{me.name}</div><p className="muted">roles: {me.roles.join(', ')}</p></> : <p className="muted">Loading…</p>}</article>
-        <article className="card"><h2>Projects</h2><div className="metric">{projects.length}</div><p className="muted">Foundation endpoint for filtering and permissions</p></article>
-        <article className="card"><h2>Users</h2><div className="metric">{users.length}</div><p className="muted">Foundation endpoint for assignee selectors and access lists</p></article>
+        <article className="card">
+          <h2>Current user</h2>
+          <div className="metric">{me?.name ?? '—'}</div>
+          <p className="muted">{me?.roles.join(', ') ?? 'loading'}</p>
+        </article>
+        <article className="card">
+          <h2>Queue</h2>
+          <div className="metric">{queueCreatives.length}</div>
+          <p className="muted">draft / sent_to_designer / revision / review</p>
+        </article>
+        <article className="card">
+          <h2>Auctions</h2>
+          <div className="metric">{auctionCreatives.length}</div>
+          <p className="muted">pending_hod_setup / queued / in_auction</p>
+        </article>
+        <article className="card">
+          <h2>In progress</h2>
+          <div className="metric">{inProgressCreatives.length}</div>
+          <p className="muted">active designer workload</p>
+        </article>
       </section>
 
-      <CreativesMetricsShell metrics={creativesMetrics} />
-
-      <section id="creatives" className="card roadmap-card">
-        <h2>Creatives</h2>
-        <ol><li>List + detail wired</li><li>Assign / reassign / unassign wired</li><li>Take / submit review / revision / accept wired</li></ol>
+      <section className="card action-bar-card">
+        <h2>Role-based views</h2>
+        <div className="action-bar">
+          <button onClick={() => setView('buyer')} disabled={view === 'buyer'}>Buyer</button>
+          <button onClick={() => setView('hod')} disabled={view === 'hod'}>HoD</button>
+          <button onClick={() => setView('designer')} disabled={view === 'designer'}>Designer</button>
+        </div>
+        <p className="muted">Current view: {view}</p>
       </section>
 
       <section className="creatives-shell-layout">
-        <CreativesListShell items={creativesListItems} selectedId={selectedCreativeId} onSelect={(item) => setSelectedCreativeId(item.id)} />
-        <div>
-          <div className="card action-bar-card">
-            <h2>Creatives MVP actions</h2>
-            <div className="action-bar">
-              <button disabled={!selectedCreative || actionLoading !== null} onClick={() => runCreativeAction('assign')}>Assign</button>
-              <button disabled={!selectedCreative || actionLoading !== null} onClick={() => runCreativeAction('reassign')}>Reassign</button>
-              <button disabled={!selectedCreative || actionLoading !== null} onClick={() => runCreativeAction('unassign')}>Unassign</button>
-              <button disabled={!selectedCreative || actionLoading !== null} onClick={() => runCreativeAction('take')}>Take</button>
-              <button disabled={!selectedCreative || actionLoading !== null} onClick={() => runCreativeAction('submitReview')}>Submit review</button>
-              <button disabled={!selectedCreative || actionLoading !== null} onClick={() => runCreativeAction('requestRevision')}>Revision</button>
-              <button disabled={!selectedCreative || actionLoading !== null} onClick={() => runCreativeAction('accept')}>Accept</button>
+        <section className="card creatives-shell-section">
+          <div className="creatives-shell-heading">
+            <div>
+              <p className="eyebrow">{view}</p>
+              <h2>{view === 'buyer' ? 'My orders' : view === 'designer' ? 'Assigned work' : 'Operations board'}</h2>
             </div>
           </div>
-          <CreativesDetailShell creative={loadingDetail ? null : selectedCreative} />
-        </div>
-      </section>
-
-      <section id="visuals" className="card roadmap-card">
-        <h2>Visuals</h2>
-        <ol><li>List + detail wired</li><li>Assign action wired</li><li>Take + status change wired</li></ol>
-      </section>
-
-      <section className="visuals-grid">
-        <section className="card">
-          <h2>Visuals list</h2>
-          <div className="visual-card-list">
-            {visuals.map((visual) => (
-              <button key={visual.id} type="button" className={`visual-row${visual.id === selectedVisualId ? ' is-active' : ''}`} onClick={() => setSelectedVisualId(visual.id)}>
-                <strong>{visual.displayId}</strong><p className="muted">{visual.title}</p>
-                <div className="visual-meta"><span className="visual-chip">{visual.status}</span><span className="visual-chip">{visual.urgency}</span><span className="visual-chip">{visual.taskType}</span></div>
+          <div className="creatives-list-shell">
+            {visibleCreatives.map((creative) => (
+              <button
+                key={creative.id}
+                type="button"
+                className={`card creatives-list-row${creative.id === selectedCreativeId ? ' is-active' : ''}`}
+                onClick={() => setSelectedCreativeId(creative.id)}
+              >
+                <div className="creatives-list-row-main">
+                  <div>
+                    <div className="creatives-list-code-row">
+                      <strong>{creative.internalCode}</strong>
+                      <span className="creatives-chip">{creative.status}</span>
+                      <span className="creatives-chip creatives-chip-priority">{creative.priority}</span>
+                    </div>
+                    <p className="muted">
+                      {(creative.projectId ? projectNameById.get(creative.projectId) : 'No project') ?? 'No project'} · {creative.type}
+                    </p>
+                  </div>
+                </div>
+                <div className="creatives-list-meta">
+                  <span>Buyer: {userNameById.get(creative.requestedById) ?? '—'}</span>
+                  <span>Designer: {creative.assignedToId ? userNameById.get(creative.assignedToId) ?? '—' : 'unassigned'}</span>
+                </div>
               </button>
             ))}
           </div>
         </section>
-        <section className="card">
-          <h2>Visual detail</h2>
-          {!selectedVisualDetail ? <p className="muted">Select a visual request.</p> : <>
-            <p className="eyebrow">{selectedVisualDetail.displayId}</p><h3>{selectedVisualDetail.title}</h3><p className="muted">{selectedVisualDetail.brief ?? 'No brief'}</p>
-            <div className="visual-meta"><span className="visual-chip">status: {selectedVisualDetail.status}</span><span className="visual-chip">requester: {selectedVisualDetail.requesterName ?? '—'}</span><span className="visual-chip">designer: {selectedVisualDetail.assignedDesignerName ?? 'unassigned'}</span></div>
-            <div className="action-bar"><button disabled={visualActionLoading !== null} onClick={() => runVisualAction('assign')}>Assign</button><button disabled={visualActionLoading !== null} onClick={() => runVisualAction('take')}>Take</button><button disabled={visualActionLoading !== null} onClick={() => runVisualAction('status')}>Toggle status</button></div>
-            <p className="muted">History: {selectedVisualDetail.statusLogs.map((log) => `${log.fromStatus ?? 'new'} → ${log.toStatus}`).join(' · ')}</p>
-          </>}
+
+        <section className="card creatives-shell-section">
+          <div className="creatives-shell-heading">
+            <div>
+              <p className="eyebrow">Creative detail</p>
+              <h2>{selectedCreativeDetail?.internalCode ?? 'Select creative'}</h2>
+            </div>
+          </div>
+
+          {!selectedCreativeDetail || loading ? (
+            <p className="muted">Loading…</p>
+          ) : (
+            <>
+              <p><strong>Title:</strong> {selectedCreativeDetail.title}</p>
+              <p><strong>Brief:</strong> {selectedCreativeDetail.brief ?? '—'}</p>
+              <p><strong>Status:</strong> {selectedCreativeDetail.status}</p>
+              <p><strong>Buyer:</strong> {selectedCreativeDetail.requestedByName ?? '—'}</p>
+              <p><strong>Designer:</strong> {selectedCreativeDetail.assignedToName ?? 'unassigned'}</p>
+              <p><strong>Price:</strong> {selectedCreativeDetail.price ?? '—'}</p>
+              <p><strong>History:</strong> {selectedCreativeDetail.statusLogs.map((log) => `${log.fromStatus ?? 'new'} → ${log.toStatus}`).join(' · ')}</p>
+
+              <div className="action-bar">
+                {view === 'hod' ? <button disabled={actionLoading !== null} onClick={() => runAction('assign')}>Assign</button> : null}
+                {view === 'designer' ? <button disabled={actionLoading !== null} onClick={() => runAction('take')}>Accept / Take</button> : null}
+                {view === 'designer' ? <button disabled={actionLoading !== null} onClick={() => runAction('submitReview')}>Submit review</button> : null}
+                {view === 'buyer' ? <button disabled={actionLoading !== null} onClick={() => runAction('requestRevision')}>Request revision</button> : null}
+                {view === 'buyer' ? <button disabled={actionLoading !== null} onClick={() => runAction('accept')}>Approve</button> : null}
+              </div>
+            </>
+          )}
         </section>
       </section>
 
-      <section id="models" className="card roadmap-card">
-        <h2>Model Database</h2>
-        <ol><li>List wired</li><li>Detail wired</li><li>Create / edit shell wired</li></ol>
-      </section>
-
-      <section className="models-grid">
-        <section className="card">
-          <h2>Model profiles</h2>
-          <div className="model-list">{models.map((model) => <button key={model.id} type="button" className={`model-row${model.id === selectedModelId ? ' is-active' : ''}`} onClick={() => setSelectedModelId(model.id)}><strong>{model.name}</strong><p className="muted">{model.geo}</p></button>)}</div>
-        </section>
-        <section className="card">
-          <h2>Model detail</h2>
-          {!selectedModelDetail ? <p className="muted">Select model profile.</p> : <><p className="eyebrow">{selectedModelDetail.geo}</p><h3>{selectedModelDetail.name}</h3><p className="muted">{selectedModelDetail.description ?? 'No description'}</p><div className="visual-meta">{selectedModelDetail.blocks.map((block) => <span key={block.id} className="visual-chip">{block.title}</span>)}</div><div className="action-bar"><button disabled={modelActionLoading !== null} onClick={() => runModelAction('update')}>Update description</button></div></>}
-        </section>
-        <section className="card">
-          <h2>Create model shell</h2>
-          <div className="model-form"><input value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="Model name" /><input value={newModelGeo} onChange={(e) => setNewModelGeo(e.target.value)} placeholder="Geo" /><button disabled={modelActionLoading !== null} onClick={() => runModelAction('create')}>{modelActionLoading === 'create' ? 'Creating…' : 'Create model'}</button></div>
-        </section>
-      </section>
-
-      <section id="team" className="card roadmap-card">
-        <h2>Design Team ops-light</h2>
-        <ol><li>Team stats wired</li><li>Reviewer reports wired</li><li>SMM reports wired</li><li>Staff settings / rate periods wired</li></ol>
-      </section>
-
-      <section className="team-grid">
-        <section className="card">
-          <h2>Team stats</h2>
-          {!teamStats ? <p className="muted">Loading…</p> : <div className="team-list"><span>Designers: {teamStats.designers}</span><span>Reviewers: {teamStats.reviewers}</span><span>SMM: {teamStats.smmManagers}</span><span>Active creatives: {teamStats.activeCreatives}</span><span>Active visuals: {teamStats.activeVisuals}</span></div>}
-        </section>
-        <section className="card">
-          <h2>Reviewer reports</h2>
-          <div className="team-list">{reviewerReports.map((report) => <span key={report.id}>{report.geo}: big {report.bigReviews}, mini {report.miniReviews}, earned {report.totalEarned}</span>)}</div>
-        </section>
-        <section className="card">
-          <h2>SMM reports</h2>
-          <div className="team-list">{smmReports.map((report) => <span key={report.id}>{report.channelGeo}: posts {report.posts}, stories {report.stories}, earned {report.totalEarned}</span>)}</div>
-        </section>
-        <section className="card">
-          <h2>Staff settings</h2>
-          <div className="team-list">{staffSettings.map((item) => <span key={item.id}>user #{item.userId}: {item.roleLabel} ({item.isActive ? 'active' : 'inactive'})</span>)}</div>
-        </section>
-        <section className="card">
-          <h2>Rate periods</h2>
-          <div className="team-list">{ratePeriods.map((item) => <span key={item.id}>user #{item.userId}: {item.rateLabel} = {item.rateValue}</span>)}</div>
-        </section>
+      <section className="grid">
+        <article className="card">
+          <h2>HoD Board</h2>
+          <p className="muted">Needs: assign / reassign / unassign / auction launch / queue control</p>
+        </article>
+        <article className="card">
+          <h2>Buyer Workspace</h2>
+          <p className="muted">Needs: create request / references / approve / revision loop</p>
+        </article>
+        <article className="card">
+          <h2>Designer Workspace</h2>
+          <p className="muted">Needs: my tasks / auctions / files / submit review</p>
+        </article>
       </section>
     </main>
   )
