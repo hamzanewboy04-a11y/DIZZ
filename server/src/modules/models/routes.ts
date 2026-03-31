@@ -1,6 +1,6 @@
 import type { Express } from 'express'
-import * as mock from '../../shared/mock'
-import type { CreateModelProfileDto, ModelProfileDetailDto, UpdateModelProfileDto } from '../../shared/models'
+import * as mock from '../../shared/mock.js'
+import type { CreateModelProfileDto, ModelProfileDetailDto, UpdateModelProfileDto } from '../../shared/models.js'
 
 function toNumericId(value: string): number | null {
   const parsed = Number(value)

@@ -1,11 +1,11 @@
 import type { Express } from 'express'
-import * as mock from '../../shared/mock'
+import * as mock from '../../shared/mock.js'
 import type {
   AssignVisualDto,
   UpdateVisualStatusDto,
   VisualDetailDto,
   VisualRequestStatus,
-} from '../../shared/visuals'
+} from '../../shared/visuals.js'
 
 function resolveUserName(userId: number | null): string | null {
   if (userId === null) return null

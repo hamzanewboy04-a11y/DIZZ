@@ -1,4 +1,4 @@
-import * as mock from '../../shared/mock'
+import * as mock from '../../shared/mock.js'
 import type {
   AssignCreativeDto,
   CreativeCardDto,
@@ -6,7 +6,7 @@ import type {
   CreativeEntity,
   CreativeStatus,
   CreativeStatusLog,
-} from '../../shared/creatives'
+} from '../../shared/creatives.js'
 
 function resolveUserName(userId: number | null): string | null {
   if (userId === null) return null

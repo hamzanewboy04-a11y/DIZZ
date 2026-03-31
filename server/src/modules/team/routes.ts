@@ -1,5 +1,5 @@
 import type { Express } from 'express'
-import * as mock from '../../shared/mock'
+import * as mock from '../../shared/mock.js'
 
 export function registerTeamRoutes(app: Express) {
   app.get('/api/design-team/stats', (_req, res) => {
