@@ -27,7 +27,7 @@ npm --prefix server run dev
 ```
 
 Backend runs on:
-- `http://localhost:4010`
+- `http://localhost:8080`
 
 ### 3. Start frontend
 
@@ -39,7 +39,9 @@ npm --prefix client run dev
 Frontend runs on:
 - `http://localhost:5174`
 
-Vite proxy forwards `/api/*` to backend `:4010`.
+Vite proxy forwards `/api/*` to backend.
+Use env when deployed:
+- `VITE_API_TARGET=https://your-server-domain`
 
 ## Validation
 
@@ -48,6 +50,24 @@ cd d7-design-product
 npm --prefix client run build
 npm --prefix server run check
 ```
+
+## Database
+
+Server supports Railway Postgres wiring.
+
+Required server env for DB init / later persistence:
+- `DATABASE_URL`
+
+Initialize schema:
+
+```bash
+cd server
+npm run db:init
+```
+
+Current status:
+- DB schema prepared
+- runtime still uses mock/in-memory data until persistence layer is wired
 
 ## Current structure
 
@@ -60,6 +80,6 @@ notes/
 
 ## Notes
 
-- Current backend is mock/in-memory based.
+- Current backend is mock/in-memory based for runtime behavior.
 - Current goal is extraction speed and runnable MVP shell.
-- Next steps: modularize App.tsx, replace in-memory data, add auth/session and real persistence.
+- Next steps: connect runtime routes to Postgres, replace mocks, add auth/session and real persistence.
