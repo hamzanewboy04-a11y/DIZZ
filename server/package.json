@@ -5,6 +5,8 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "start": "node --enable-source-maps dist/index.js",
+    "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json",
     "db:init": "tsx src/db/init.ts"
   },
