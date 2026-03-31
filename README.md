@@ -9,44 +9,54 @@ Standalone extracted design product from D7-ANAL.
 - Model Database — list/detail/create-edit shell
 - Design Team ops-light — read-only shell
 
-## Run
+## Railway deploy
 
-### 1. Install
+Recommended mode now: **single service**.
+
+Use only the `server` service.
+It will:
+- serve API
+- serve built frontend from `client/dist`
+
+### Server service settings
+
+**Root Directory**
+```text
+server
+```
+
+**Build Command**
+```bash
+npm install && npm run build
+```
+
+**Start Command**
+```bash
+npm run start
+```
+
+### Required env
+- `DATABASE_URL` for Railway Postgres (optional until persistence is wired fully)
+
+## Local run
+
+### Backend + frontend build
 
 ```bash
-cd d7-design-product
-npm --prefix client install
+cd DIZZ
 npm --prefix server install
+npm --prefix client install
+npm --prefix server run build
+npm --prefix server run start
 ```
 
-### 2. Start backend
-
-```bash
-cd d7-design-product
-npm --prefix server run dev
-```
-
-Backend runs on:
+App will be served from the server on:
 - `http://localhost:8080`
-
-### 3. Start frontend
-
-```bash
-cd d7-design-product
-npm --prefix client run dev
-```
-
-Frontend runs on:
-- `http://localhost:5174`
-
-Vite proxy forwards `/api/*` to backend.
-Use env when deployed:
-- `VITE_API_TARGET=https://your-server-domain`
 
 ## Validation
 
 ```bash
-cd d7-design-product
+cd DIZZ
 npm --prefix client run build
 npm --prefix server run check
 ```
@@ -54,9 +64,6 @@ npm --prefix server run check
 ## Database
 
 Server supports Railway Postgres wiring.
-
-Required server env for DB init / later persistence:
-- `DATABASE_URL`
 
 Initialize schema:
 
@@ -67,19 +74,4 @@ npm run db:init
 
 Current status:
 - DB schema prepared
-- runtime still uses mock/in-memory data until persistence layer is wired
-
-## Current structure
-
-```text
-client/
-server/
-shared/
-notes/
-```
-
-## Notes
-
-- Current backend is mock/in-memory based for runtime behavior.
-- Current goal is extraction speed and runnable MVP shell.
-- Next steps: connect runtime routes to Postgres, replace mocks, add auth/session and real persistence.
+- runtime still mostly mock/in-memory until persistence layer is fully wired
