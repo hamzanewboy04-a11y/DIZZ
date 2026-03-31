@@ -1,0 +1,10 @@
+{
+  "name": "d7-design-product",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["client"],
+  "scripts": {
+    "dev:client": "npm --prefix client run dev",
+    "build:client": "npm --prefix client run build"
+  }
+}
