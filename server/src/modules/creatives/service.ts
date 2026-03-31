@@ -6,7 +6,7 @@ import type {
   RequestCreativeRevisionDto,
   SubmitCreativeReviewDto,
   UnassignCreativeDto,
-} from '../../../../shared/src/types/creatives.js'
+} from '../../shared/creatives'
 import { creativeStorage } from './storage.js'
 
 const assignableStatuses = new Set(['draft', 'revision', 'sent_to_designer'])

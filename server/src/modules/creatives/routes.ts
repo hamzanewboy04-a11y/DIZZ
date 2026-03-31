@@ -6,7 +6,7 @@ import type {
   ReassignCreativeDto,
   SubmitCreativeReviewDto,
   UnassignCreativeDto,
-} from '../../../../shared/src/types/creatives.js'
+} from '../../shared/creatives'
 import { creativeService } from './service.js'
 
 function toNumericId(value: string): number | null {
