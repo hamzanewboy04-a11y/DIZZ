@@ -11,7 +11,7 @@ const app = express()
 
 app.use(express.static(distDir))
 
-app.get('*', (_req, res) => {
+app.use((_req, res) => {
   res.sendFile(path.join(distDir, 'index.html'))
 })
 
