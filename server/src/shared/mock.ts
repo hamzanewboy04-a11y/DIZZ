@@ -1,8 +1,8 @@
-import type { Project, User } from '../types/domain'
-import type { CreativeEntity, CreativeStatusLog } from '../types/creatives'
-import type { VisualRequest, VisualStatusLog } from '../types/visuals'
-import type { ModelProfile, ModelProfileBlock } from '../types/models'
-import type { DesignStaffSetting, ReviewerReport, SmmReport, StaffRatePeriod } from '../types/team'
+import type { Project, User } from './domain'
+import type { CreativeEntity, CreativeStatusLog } from './creatives'
+import type { VisualRequest, VisualStatusLog } from './visuals'
+import type { ModelProfile, ModelProfileBlock } from './models'
+import type { DesignStaffSetting, ReviewerReport, SmmReport, StaffRatePeriod } from './team'
 
 export const users: User[] = [
   { id: 1, name: 'Nikita', roles: ['head_designer'] },
