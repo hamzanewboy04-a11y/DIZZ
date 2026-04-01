@@ -36,7 +36,7 @@ npm run start
 ```
 
 ### Required env
-- `DATABASE_URL` for Railway Postgres (optional until persistence is wired fully)
+- `DATABASE_URL` for Railway Postgres
 
 ## Local run
 
@@ -72,6 +72,14 @@ cd server
 npm run db:init
 ```
 
+Seed demo data:
+
+```bash
+cd server
+npm run db:seed
+```
+
 Current status:
 - DB schema prepared
-- runtime still mostly mock/in-memory until persistence layer is fully wired
+- DB seed prepared from mock demo data
+- runtime can use Postgres-backed modules with mock fallback when `DATABASE_URL` is absent
