@@ -14,7 +14,7 @@ function toNumericId(value: string): number | null {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null
 }
 
-function handleAssign(req: { params: { id: string }; body: Partial<AssignCreativeDto> }, res: any) {
+async function handleAssign(req: { params: { id: string }; body: Partial<AssignCreativeDto> }, res: any) {
   const id = toNumericId(req.params.id)
   if (!id) return res.status(400).json({ message: 'Invalid creative id' })
 
@@ -24,7 +24,7 @@ function handleAssign(req: { params: { id: string }; body: Partial<AssignCreativ
   }
 
   try {
-    const creative = creativeService.assign(id, {
+    const creative = await creativeService.assign(id, {
       assigneeId: payload.assigneeId,
       price: payload.price,
       actorUserId: payload.actorUserId,
@@ -38,7 +38,7 @@ function handleAssign(req: { params: { id: string }; body: Partial<AssignCreativ
   }
 }
 
-function handleReassign(req: { params: { id: string }; body: Partial<ReassignCreativeDto> }, res: any) {
+async function handleReassign(req: { params: { id: string }; body: Partial<ReassignCreativeDto> }, res: any) {
   const id = toNumericId(req.params.id)
   if (!id) return res.status(400).json({ message: 'Invalid creative id' })
 
@@ -48,7 +48,7 @@ function handleReassign(req: { params: { id: string }; body: Partial<ReassignCre
   }
 
   try {
-    const creative = creativeService.reassign(id, {
+    const creative = await creativeService.reassign(id, {
       assigneeId: payload.assigneeId,
       price: payload.price,
       actorUserId: payload.actorUserId,
@@ -62,12 +62,12 @@ function handleReassign(req: { params: { id: string }; body: Partial<ReassignCre
   }
 }
 
-function handleAccept(req: { params: { id: string }; body: AcceptCreativeDto }, res: any) {
+async function handleAccept(req: { params: { id: string }; body: AcceptCreativeDto }, res: any) {
   const id = toNumericId(req.params.id)
   if (!id) return res.status(400).json({ message: 'Invalid creative id' })
 
   try {
-    const creative = creativeService.accept(id, req.body ?? {})
+    const creative = await creativeService.accept(id, req.body ?? {})
     return res.json(creative)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Accept failed'
@@ -76,12 +76,12 @@ function handleAccept(req: { params: { id: string }; body: AcceptCreativeDto }, 
   }
 }
 
-function handleUnassign(req: { params: { id: string }; body: UnassignCreativeDto }, res: any) {
+async function handleUnassign(req: { params: { id: string }; body: UnassignCreativeDto }, res: any) {
   const id = toNumericId(req.params.id)
   if (!id) return res.status(400).json({ message: 'Invalid creative id' })
 
   try {
-    const creative = creativeService.unassign(id, req.body ?? {})
+    const creative = await creativeService.unassign(id, req.body ?? {})
     return res.json(creative)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unassign failed'
@@ -90,12 +90,12 @@ function handleUnassign(req: { params: { id: string }; body: UnassignCreativeDto
   }
 }
 
-function handleSubmitReview(req: { params: { id: string }; body: SubmitCreativeReviewDto }, res: any) {
+async function handleSubmitReview(req: { params: { id: string }; body: SubmitCreativeReviewDto }, res: any) {
   const id = toNumericId(req.params.id)
   if (!id) return res.status(400).json({ message: 'Invalid creative id' })
 
   try {
-    const creative = creativeService.submitReview(id, req.body ?? {})
+    const creative = await creativeService.submitReview(id, req.body ?? {})
     return res.json(creative)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Submit review failed'
@@ -104,12 +104,12 @@ function handleSubmitReview(req: { params: { id: string }; body: SubmitCreativeR
   }
 }
 
-function handleRequestRevision(req: { params: { id: string }; body: RequestCreativeRevisionDto }, res: any) {
+async function handleRequestRevision(req: { params: { id: string }; body: RequestCreativeRevisionDto }, res: any) {
   const id = toNumericId(req.params.id)
   if (!id) return res.status(400).json({ message: 'Invalid creative id' })
 
   try {
-    const creative = creativeService.requestRevision(id, req.body ?? {})
+    const creative = await creativeService.requestRevision(id, req.body ?? {})
     return res.json(creative)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Request revision failed'
@@ -119,24 +119,24 @@ function handleRequestRevision(req: { params: { id: string }; body: RequestCreat
 }
 
 export function registerCreativeRoutes(app: Express) {
-  app.get('/api/creative-requests', (_req, res) => {
-    res.json(creativeService.list())
+  app.get('/api/creative-requests', async (_req, res) => {
+    res.json(await creativeService.list())
   })
 
-  app.get('/api/creative-requests/assigned', (_req, res) => {
-    res.json(creativeService.listAssigned())
+  app.get('/api/creative-requests/assigned', async (_req, res) => {
+    res.json(await creativeService.listAssigned())
   })
 
-  app.get('/api/creative-requests/my', (_req, res) => {
+  app.get('/api/creative-requests/my', async (_req, res) => {
     const currentUserId = 3
-    res.json(creativeService.listMine(currentUserId))
+    res.json(await creativeService.listMine(currentUserId))
   })
 
-  app.get('/api/creative-requests/:id', (req, res) => {
+  app.get('/api/creative-requests/:id', async (req, res) => {
     const id = toNumericId(req.params.id)
     if (!id) return res.status(400).json({ message: 'Invalid creative id' })
 
-    const creative = creativeService.getDetail(id)
+    const creative = await creativeService.getDetail(id)
     if (!creative) {
       return res.status(404).json({ message: 'Creative not found' })
     }
@@ -149,14 +149,14 @@ export function registerCreativeRoutes(app: Express) {
   app.post('/api/creative-requests/:id/reassign', handleReassign)
   app.post('/api/creative-requests/:id/unassign', handleUnassign)
 
-  app.post('/api/creative-requests/:id/take-to-work', (req, res) => {
+  app.post('/api/creative-requests/:id/take-to-work', async (req, res) => {
     const id = toNumericId(req.params.id)
     if (!id) return res.status(400).json({ message: 'Invalid creative id' })
 
     const actorUserId = typeof req.body?.actorUserId === 'number' ? req.body.actorUserId : undefined
 
     try {
-      const creative = creativeService.takeToWork(id, actorUserId)
+      const creative = await creativeService.takeToWork(id, actorUserId)
       return res.json(creative)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Take to work failed'
